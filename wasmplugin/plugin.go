@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"sync/atomic"
 
 	"github.com/stealthrocket/wasi-go"
@@ -24,7 +23,6 @@ import (
 )
 
 const (
-	pathSchemeFile  = "file"
 	pathSchemeHTTP  = "http"
 	pathSchemeHTTPS = "https"
 
@@ -223,17 +221,6 @@ func readWasmModule(ctx context.Context, path string) ([]byte, error) {
 
 	switch u.Scheme {
 	case "":
-		f, err := os.Open(path)
-		if err != nil {
-			return nil, err
-		}
-		defer f.Close()
-		return io.ReadAll(f)
-	case pathSchemeFile:
-		if u.Host != "" {
-			return nil, fmt.Errorf("wasm: unsupported file URL host: %s", u.Host)
-		}
-		path = filepath.FromSlash(u.Path)
 		f, err := os.Open(path)
 		if err != nil {
 			return nil, err

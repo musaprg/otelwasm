@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -28,31 +26,26 @@ func TestReadWasmModuleLoadsHTTPPath(t *testing.T) {
 	}
 }
 
-func TestReadWasmModuleLoadsFileURLPath(t *testing.T) {
-	wasmPath, err := filepath.Abs("../wasmprocessor/testdata/nop/main.wasm")
+func TestReadWasmModuleLoadsLocalPath(t *testing.T) {
+	got, err := readWasmModule(t.Context(), "../wasmprocessor/testdata/nop/main.wasm")
 	if err != nil {
-		t.Fatalf("failed to resolve test wasm path: %v", err)
+		t.Fatalf("failed to read local path: %v", err)
 	}
-
-	got, err := readWasmModule(t.Context(), (&url.URL{Scheme: "file", Path: wasmPath}).String())
-	if err != nil {
-		t.Fatalf("failed to read file URL path: %v", err)
-	}
-	want, err := os.ReadFile(wasmPath)
+	want, err := os.ReadFile("../wasmprocessor/testdata/nop/main.wasm")
 	if err != nil {
 		t.Fatalf("failed to read fixture: %v", err)
 	}
 	if !bytes.Equal(got, want) {
-		t.Fatal("file URL path returned different wasm bytes")
+		t.Fatal("local path returned different wasm bytes")
 	}
 }
 
-func TestReadWasmModuleRejectsHostedFileURLPath(t *testing.T) {
-	_, err := readWasmModule(t.Context(), "file://localhost/tmp/main.wasm")
+func TestReadWasmModuleRejectsFileURLPath(t *testing.T) {
+	_, err := readWasmModule(t.Context(), "file:///tmp/main.wasm")
 	if err == nil {
-		t.Fatal("expected hosted file URL to fail")
+		t.Fatal("expected file URL to fail")
 	}
-	if !strings.Contains(err.Error(), "unsupported file URL host") {
-		t.Fatalf("expected unsupported host error, got %v", err)
+	if !strings.Contains(err.Error(), "unsupported path scheme: file") {
+		t.Fatalf("expected unsupported scheme error, got %v", err)
 	}
 }
