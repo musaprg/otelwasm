@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -43,5 +44,15 @@ func TestReadWasmModuleLoadsFileURLPath(t *testing.T) {
 	}
 	if !bytes.Equal(got, want) {
 		t.Fatal("file URL path returned different wasm bytes")
+	}
+}
+
+func TestReadWasmModuleRejectsHostedFileURLPath(t *testing.T) {
+	_, err := readWasmModule(t.Context(), "file://localhost/tmp/main.wasm")
+	if err == nil {
+		t.Fatal("expected hosted file URL to fail")
+	}
+	if !strings.Contains(err.Error(), "unsupported file URL host") {
+		t.Fatalf("expected unsupported host error, got %v", err)
 	}
 }
