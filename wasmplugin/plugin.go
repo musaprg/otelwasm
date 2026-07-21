@@ -222,13 +222,18 @@ func readWasmModule(ctx context.Context, path string) ([]byte, error) {
 	}
 
 	switch u.Scheme {
-	case "", pathSchemeFile:
-		if u.Scheme == pathSchemeFile && u.Host != "" && u.Host != "localhost" {
+	case "":
+		f, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		return io.ReadAll(f)
+	case pathSchemeFile:
+		if u.Host != "" && u.Host != "localhost" {
 			return nil, fmt.Errorf("wasm: unsupported file URL host: %s", u.Host)
 		}
-		if u.Scheme == pathSchemeFile {
-			path = filepath.FromSlash(u.Path)
-		}
+		path = filepath.FromSlash(u.Path)
 		f, err := os.Open(path)
 		if err != nil {
 			return nil, err
