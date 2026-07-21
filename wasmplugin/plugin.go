@@ -24,6 +24,10 @@ import (
 )
 
 const (
+	pathSchemeFile  = "file"
+	pathSchemeHTTP  = "http"
+	pathSchemeHTTPS = "https"
+
 	// guestExportMemory is the name of the memory export in the guest module
 	guestExportMemory = "memory"
 
@@ -218,11 +222,11 @@ func readWasmModule(ctx context.Context, path string) ([]byte, error) {
 	}
 
 	switch u.Scheme {
-	case "", "file":
-		if u.Scheme == "file" && u.Host != "" && u.Host != "localhost" {
+	case "", pathSchemeFile:
+		if u.Scheme == pathSchemeFile && u.Host != "" && u.Host != "localhost" {
 			return nil, fmt.Errorf("wasm: unsupported file URL host: %s", u.Host)
 		}
-		if u.Scheme == "file" {
+		if u.Scheme == pathSchemeFile {
 			path = filepath.FromSlash(u.Path)
 		}
 		f, err := os.Open(path)
@@ -231,7 +235,7 @@ func readWasmModule(ctx context.Context, path string) ([]byte, error) {
 		}
 		defer f.Close()
 		return io.ReadAll(f)
-	case "http", "https":
+	case pathSchemeHTTP, pathSchemeHTTPS:
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, path, nil)
 		if err != nil {
 			return nil, err
