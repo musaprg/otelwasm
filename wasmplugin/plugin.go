@@ -6,7 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
+	"path/filepath"
 	"sync/atomic"
 
 	"github.com/stealthrocket/wasi-go"
@@ -131,13 +134,7 @@ func NewWasmPlugin(ctx context.Context, cfg *Config, requiredFunctions []string)
 		return nil, err
 	}
 
-	f, err := os.Open(cfg.Path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	bytes, err := io.ReadAll(f)
+	bytes, err := readWasmModule(ctx, cfg.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -212,6 +209,45 @@ func NewWasmPlugin(ctx context.Context, cfg *Config, requiredFunctions []string)
 	}
 
 	return plugin, nil
+}
+
+func readWasmModule(ctx context.Context, path string) ([]byte, error) {
+	u, err := url.Parse(path)
+	if err != nil {
+		return nil, err
+	}
+
+	switch u.Scheme {
+	case "", "file":
+		if u.Scheme == "file" && u.Host != "" && u.Host != "localhost" {
+			return nil, fmt.Errorf("wasm: unsupported file URL host: %s", u.Host)
+		}
+		if u.Scheme == "file" {
+			path = filepath.FromSlash(u.Path)
+		}
+		f, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		return io.ReadAll(f)
+	case "http", "https":
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, path, nil)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+			return nil, fmt.Errorf("wasm: failed to fetch %s: %s", path, resp.Status)
+		}
+		return io.ReadAll(resp.Body)
+	default:
+		return nil, fmt.Errorf("wasm: unsupported path scheme: %s", u.Scheme)
+	}
 }
 
 // prepareRuntime initializes a new WebAssembly runtime
